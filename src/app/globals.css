@@ -1,0 +1,99 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  --color-brand: #6842ff;
+  --color-brand-hover: #8668ff;
+  --color-brand-deep: #5335cc;
+  --color-surface-canvas: #0c0d14;
+  --color-surface-rail: #13141e;
+  --color-surface-card: #212233;
+  --color-surface-elevated: #28293d;
+  --color-border-subtle: #2f3148;
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+}
+
+:root {
+  --background: #0c0d14;
+  --foreground: #f9faff;
+  --card: #212233;
+  --card-foreground: #f9faff;
+  --popover: #212233;
+  --popover-foreground: #f9faff;
+  --primary: #6842ff;
+  --primary-foreground: #f9faff;
+  --secondary: #28293d;
+  --secondary-foreground: #f9faff;
+  --muted: #1a1b28;
+  --muted-foreground: #aaadbe;
+  --accent: #2f3148;
+  --accent-foreground: #f9faff;
+  --destructive: #e70d5c;
+  --border: #2f3148;
+  --input: #28293d;
+  --ring: #8668ff;
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans scroll-smooth;
+    color-scheme: dark;
+  }
+  body {
+    background-color: #13141e;
+    color: #f9faff;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom subtle dark scrollbar matching CrazyGames */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0c0d14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #373952;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #474967;
+}
