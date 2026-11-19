@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Play,
@@ -28,6 +29,7 @@ import {
   Wand2,
   Flame,
   Dices,
+  HelpCircle,
 } from "lucide-react";
 import {
   buildGeneratorConfig,
@@ -717,6 +719,15 @@ export function TastyMatchGame() {
             )}
           </button>
 
+          <Link
+            href="/help"
+            aria-label="How to play and connection rules"
+            className="flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[#2F3148] bg-[#212233] px-3 text-xs font-bold text-[#D0D2DE] hover:bg-[#28293D] hover:text-white active:scale-95 whitespace-nowrap"
+          >
+            <HelpCircle className="h-4 w-4 text-[#A48EFF]" />
+            <span className="hidden sm:inline">Help</span>
+          </Link>
+
           <button
             type="button"
             onClick={toggleFullscreen}
@@ -832,7 +843,13 @@ export function TastyMatchGame() {
                       <span>
                         Fill 25 ★ to open the{" "}
                         <strong className="text-white">Reward Chest</strong>{" "}
-                        &amp; unlock new food tiles and tougher layouts.
+                        &amp; unlock new food tiles and tougher layouts.{" "}
+                        <Link
+                          href="/help"
+                          className="font-bold text-[#A48EFF] underline underline-offset-4 hover:text-white"
+                        >
+                          See full connection rules
+                        </Link>
                       </span>
                     </div>
                   </div>
@@ -1467,6 +1484,13 @@ export function TastyMatchGame() {
               >
                 Restart Board
               </button>
+              <Link
+                href="/help"
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full border border-[#2F3148] bg-[#1A1B28] text-sm font-semibold text-[#D0D2DE] hover:bg-[#28293D] hover:text-white"
+              >
+                <HelpCircle className="h-4 w-4 text-[#A48EFF]" />
+                <span>Connection Rules &amp; Help</span>
+              </Link>
               <button
                 type="button"
                 onClick={() => setGameState("TITLE_MENU")}
