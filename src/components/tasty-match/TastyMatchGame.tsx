@@ -110,6 +110,7 @@ export function TastyMatchGame() {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [pantryOpen, setPantryOpen] = useState<boolean>(false);
   const [tickNow, setTickNow] = useState<number>(() => Date.now());
+  const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(null);
   const [chestRewards, setChestRewards] = useState<{
     hints: number;
     shuffles: number;
@@ -119,6 +120,7 @@ export function TastyMatchGame() {
   } | null>(null);
 
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const boardStageRef = useRef<HTMLDivElement | null>(null);
   const lastMatchTimestampRef = useRef<number>(0);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -137,6 +139,27 @@ export function TastyMatchGame() {
       setTickNow(Date.now());
     }, 60000);
     return () => clearInterval(id);
+  }, [gameState]);
+
+  // Measure free board stage area so board & tiles expand to fill available screen space
+  useEffect(() => {
+    if (gameState === "TITLE_MENU") return;
+    const el = boardStageRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      setStageSize((prev) =>
+        prev &&
+        Math.abs(prev.width - width) < 1 &&
+        Math.abs(prev.height - height) < 1
+          ? prev
+          : { width, height }
+      );
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [gameState]);
 
   const dailyInfo = useMemo(
@@ -506,25 +529,84 @@ export function TastyMatchGame() {
   );
   const chestReady = progress.chestStars >= CHEST_GOAL_STARS;
 
+  const boardMetrics = useMemo(() => {
+    if (!stageSize) return null;
+    const outerRatio = 0.24;
+    const framePad = stageSize.width < 640 ? 6 : 8;
+    const gridGap = stageSize.width < 640 ? 4 : 6;
+    const cols = activeConfig.cols;
+    const rows = activeConfig.rows;
+
+    const innerAvailW = Math.max(120, stageSize.width - framePad * 2);
+    const innerAvailH = Math.max(120, stageSize.height - framePad * 2);
+
+    const tileByW =
+      (innerAvailW - (cols + 1) * gridGap) / (cols + outerRatio * 2);
+    const tileByH =
+      (innerAvailH - (rows + 1) * gridGap) / (rows + outerRatio * 2);
+    const tileSize = Math.max(24, Math.floor(Math.min(tileByW, tileByH)));
+    const corridorPx = Math.max(6, Math.round(tileSize * outerRatio));
+
+    const gridW = cols * tileSize + corridorPx * 2 + (cols + 1) * gridGap;
+    const gridH = rows * tileSize + corridorPx * 2 + (rows + 1) * gridGap;
+
+    return {
+      framePad,
+      gridGap,
+      tileSize,
+      corridorPx,
+      gridW,
+      gridH,
+      boardW: gridW + framePad * 2,
+      boardH: gridH + framePad * 2,
+    };
+  }, [stageSize, activeConfig.cols, activeConfig.rows]);
+
   const toSvgPercent = useCallback(
     (pt: GridPoint) => {
-      const totalC = activeConfig.cols + 0.8;
-      const totalR = activeConfig.rows + 0.8;
+      if (boardMetrics) {
+        const { gridGap, tileSize, corridorPx, gridW, gridH } = boardMetrics;
+        const cols = activeConfig.cols;
+        const rows = activeConfig.rows;
+
+        const px =
+          pt.c === 0
+            ? corridorPx / 2
+            : pt.c === cols + 1
+              ? corridorPx + cols * tileSize + (cols + 1) * gridGap + corridorPx / 2
+              : corridorPx + pt.c * gridGap + (pt.c - 1) * tileSize + tileSize / 2;
+
+        const py =
+          pt.r === 0
+            ? corridorPx / 2
+            : pt.r === rows + 1
+              ? corridorPx + rows * tileSize + (rows + 1) * gridGap + corridorPx / 2
+              : corridorPx + pt.r * gridGap + (pt.r - 1) * tileSize + tileSize / 2;
+
+        return {
+          x: (px / gridW) * 100,
+          y: (py / gridH) * 100,
+        };
+      }
+
+      const pad = 0.24;
+      const totalC = activeConfig.cols + pad * 2;
+      const totalR = activeConfig.rows + pad * 2;
       let cx = 50;
-      if (pt.c === 0) cx = (0.2 / totalC) * 100;
+      if (pt.c === 0) cx = ((pad * 0.5) / totalC) * 100;
       else if (pt.c === activeConfig.cols + 1)
-        cx = ((activeConfig.cols + 0.6) / totalC) * 100;
-      else cx = ((0.4 + (pt.c - 1) + 0.5) / totalC) * 100;
+        cx = ((activeConfig.cols + pad * 1.5) / totalC) * 100;
+      else cx = ((pad + (pt.c - 1) + 0.5) / totalC) * 100;
 
       let cy = 50;
-      if (pt.r === 0) cy = (0.2 / totalR) * 100;
+      if (pt.r === 0) cy = ((pad * 0.5) / totalR) * 100;
       else if (pt.r === activeConfig.rows + 1)
-        cy = ((activeConfig.rows + 0.6) / totalR) * 100;
-      else cy = ((0.4 + (pt.r - 1) + 0.5) / totalR) * 100;
+        cy = ((activeConfig.rows + pad * 1.5) / totalR) * 100;
+      else cy = ((pad + (pt.r - 1) + 0.5) / totalR) * 100;
 
       return { x: cx, y: cy };
     },
-    [activeConfig.cols, activeConfig.rows]
+    [boardMetrics, activeConfig.cols, activeConfig.rows]
   );
 
   const timerPct = Math.max(
@@ -553,7 +635,11 @@ export function TastyMatchGame() {
   return (
     <main
       ref={rootRef}
-      className="relative flex min-h-dvh w-full flex-col overflow-x-hidden bg-[#13141E] text-[#F9FAFF] select-none touch-manipulation"
+      className={`relative flex w-full flex-col bg-[#13141E] text-[#F9FAFF] select-none touch-manipulation ${
+        gameState === "TITLE_MENU"
+          ? "min-h-dvh overflow-x-hidden"
+          : "h-dvh overflow-hidden"
+      }`}
     >
       <div
         className="pointer-events-none fixed inset-0 opacity-25"
@@ -564,7 +650,13 @@ export function TastyMatchGame() {
       />
 
       {/* TOP TABLET HUD */}
-      <header className="relative z-20 flex flex-wrap items-center justify-between gap-3 border-b border-[#28293D] bg-[#1A1B28]/95 px-4 py-2.5 sm:px-6 backdrop-blur-md">
+      <header
+        className={`relative z-20 shrink-0 flex flex-wrap items-center justify-between gap-2 sm:gap-3 border-b border-[#28293D] bg-[#1A1B28]/95 backdrop-blur-md ${
+          gameState === "TITLE_MENU"
+            ? "px-4 py-2.5 sm:px-6"
+            : "px-3 py-1.5 sm:px-5 sm:py-2"
+        }`}
+      >
         <div className="flex items-center gap-3">
           {gameState !== "TITLE_MENU" ? (
             <button
@@ -744,7 +836,13 @@ export function TastyMatchGame() {
       </header>
 
       {/* MAIN TABLET ARENA */}
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center p-3 sm:p-5">
+      <div
+        className={`relative z-10 flex flex-1 min-h-0 flex-col items-center ${
+          gameState === "TITLE_MENU"
+            ? "justify-center p-3 sm:p-5"
+            : "justify-between px-2 py-1.5 sm:px-3 sm:py-2"
+        }`}
+      >
         {/* TITLE / MODE HUB SCREEN */}
         {gameState === "TITLE_MENU" && (
           <div className="w-full max-w-5xl rounded-3xl border border-[#2F3148] bg-[#1A1B28]/95 p-5 sm:p-6 shadow-2xl">
@@ -1195,34 +1293,59 @@ export function TastyMatchGame() {
 
         {/* ACTIVE PLAY BOARD */}
         {gameState !== "TITLE_MENU" && grid.length > 0 && (
-          <div className="flex w-full flex-col items-center justify-center gap-3">
+          <div className="flex flex-1 min-h-0 w-full flex-col items-center justify-between gap-1.5 sm:gap-2">
             <div
-              className="relative w-full rounded-2xl sm:rounded-3xl border border-[#4A3222] bg-gradient-to-b from-[#4B3222] via-[#3A261A] to-[#2C1C12] p-2 sm:p-3.5 shadow-[inset_0_2px_14px_rgba(255,215,170,0.14),0_16px_40px_rgba(0,0,0,0.6)]"
-              style={{
-                maxWidth: `min(96vw, 900px, calc((100dvh - 190px) * ${activeConfig.cols} / ${activeConfig.rows}))`,
-              }}
+              ref={boardStageRef}
+              className="flex flex-1 min-h-0 w-full items-center justify-center"
             >
-              <AnimatePresence>
-                {statusNotice && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    className="pointer-events-none absolute top-3 left-1/2 z-30 -translate-x-1/2 rounded-full bg-[#0C0D14]/92 px-4 py-1.5 text-xs sm:text-sm font-bold text-[#4AF0A7] border border-[#4AF0A7]/40 shadow-lg whitespace-nowrap"
-                  >
-                    {statusNotice}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <div
+                className="relative rounded-2xl sm:rounded-3xl border border-[#4A3222] bg-gradient-to-b from-[#4B3222] via-[#3A261A] to-[#2C1C12] shadow-[inset_0_2px_14px_rgba(255,215,170,0.14),0_16px_40px_rgba(0,0,0,0.6)]"
+                style={
+                  boardMetrics
+                    ? {
+                        width: `${boardMetrics.boardW}px`,
+                        height: `${boardMetrics.boardH}px`,
+                        padding: `${boardMetrics.framePad}px`,
+                      }
+                    : {
+                        width: "100%",
+                        maxWidth: `min(98vw, calc((100dvh - 140px) * (${activeConfig.cols} + 0.48) / (${activeConfig.rows} + 0.48)))`,
+                        padding: "8px",
+                      }
+                }
+              >
+                <AnimatePresence>
+                  {statusNotice && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      className="pointer-events-none absolute top-3 left-1/2 z-30 -translate-x-1/2 rounded-full bg-[#0C0D14]/92 px-4 py-1.5 text-xs sm:text-sm font-bold text-[#4AF0A7] border border-[#4AF0A7]/40 shadow-lg whitespace-nowrap"
+                    >
+                      {statusNotice}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-              <div className="relative w-full">
-                <div
-                  className="grid gap-1 sm:gap-1.5 md:gap-2"
-                  style={{
-                    gridTemplateColumns: `0.4fr repeat(${activeConfig.cols}, minmax(0, 1fr)) 0.4fr`,
-                    gridTemplateRows: `0.4fr repeat(${activeConfig.rows}, minmax(0, 1fr)) 0.4fr`,
-                  }}
-                >
+                <div className="relative h-full w-full">
+                  <div
+                    className="grid"
+                    style={
+                      boardMetrics
+                        ? {
+                            width: `${boardMetrics.gridW}px`,
+                            height: `${boardMetrics.gridH}px`,
+                            gap: `${boardMetrics.gridGap}px`,
+                            gridTemplateColumns: `${boardMetrics.corridorPx}px repeat(${activeConfig.cols}, ${boardMetrics.tileSize}px) ${boardMetrics.corridorPx}px`,
+                            gridTemplateRows: `${boardMetrics.corridorPx}px repeat(${activeConfig.rows}, ${boardMetrics.tileSize}px) ${boardMetrics.corridorPx}px`,
+                          }
+                        : {
+                            gap: "5px",
+                            gridTemplateColumns: `0.24fr repeat(${activeConfig.cols}, minmax(0, 1fr)) 0.24fr`,
+                            gridTemplateRows: `0.24fr repeat(${activeConfig.rows}, minmax(0, 1fr)) 0.24fr`,
+                          }
+                    }
+                  >
                   {Array.from({ length: activeConfig.rows + 2 }).map((_, pr) =>
                     Array.from({ length: activeConfig.cols + 2 }).map(
                       (__, pc) => {
@@ -1290,7 +1413,7 @@ export function TastyMatchGame() {
                             transition={{ duration: 0.16, ease: "easeOut" }}
                             onClick={() => handleTileClick(r, c)}
                             aria-label={tileMeta?.name ?? cell.tileId}
-                            className={`group relative aspect-square flex items-center justify-center rounded-xl p-1 sm:p-1.5 transition-transform duration-150 active:scale-95 cursor-pointer focus-visible:outline-2 focus-visible:outline-[#8668FF] ${
+                            className={`group relative aspect-square flex items-center justify-center rounded-xl sm:rounded-2xl p-0.5 sm:p-1 transition-transform duration-150 active:scale-95 cursor-pointer focus-visible:outline-2 focus-visible:outline-[#8668FF] ${
                               isSelected
                                 ? "-translate-y-1 bg-[#FFFDF7] ring-3 ring-[#6842FF] shadow-[0_6px_18px_rgba(104,66,255,0.55)] border-b-[4px] border-[#B4A1FF]"
                                 : isHinted
@@ -1301,7 +1424,7 @@ export function TastyMatchGame() {
                             }`}
                           >
                             <div
-                              className="flex h-full w-full items-center justify-center rounded-lg p-0.5"
+                              className="flex h-full w-full items-center justify-center rounded-lg sm:rounded-xl p-0.5"
                               style={{
                                 backgroundColor:
                                   tileMeta?.accentBg ?? "#FFFBF2",
@@ -1378,11 +1501,12 @@ export function TastyMatchGame() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+                </div>
               </div>
             </div>
 
             {/* Ergonomic Tablet Bottom Power-Up Dock */}
-            <div className="flex w-full max-w-[900px] flex-wrap items-center justify-between gap-2.5 px-1">
+            <div className="shrink-0 flex w-full max-w-[1280px] flex-wrap items-center justify-between gap-2 px-1">
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"

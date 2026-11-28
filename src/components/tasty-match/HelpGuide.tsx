@@ -871,7 +871,7 @@ export function HelpGuide() {
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
             {/* Interactive Mini Board */}
             <div className="lg:col-span-7 flex flex-col items-center">
-              <div className="w-full max-w-[460px] rounded-3xl border border-dashed border-[#474967] bg-[#13141E] p-3 sm:p-4 shadow-xl">
+              <div className="w-full max-w-[580px] rounded-3xl border border-dashed border-[#474967] bg-[#13141E] p-3 sm:p-4 shadow-xl">
                 <div className="mb-2 flex items-center justify-between text-[11px] font-mono text-[#878A9E]">
                   <span>Dashed Border = Outer Corridor</span>
                   <span>
